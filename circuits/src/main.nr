@@ -1,6 +1,6 @@
 global CANDIDATES: Field = 2;
 
-use dep::std;
+use dep::std::hash;
 use dep::ecrecover;
 
 fn main(
@@ -11,11 +11,34 @@ fn main(
   polynomial_commitment: pub Field,
   nullifier: pub [u8; 32],
 ) {
-  // Write your main logic here
+  let mut pub_key_x = [0 as u8; 32];
+  let mut pub_key_y = [0 as u8; 32];
+  for i in 0..64 {
+    if (i < 32) {
+      pub_key_x[i] = pub_key[i];
+    } else {
+      pub_key_y[i - 32] = pub_key[i];
+    }
+  }
+  let address = ecrecover::ecrecover(pub_key_x, pub_key_y, signature, hashed_message);
+  let calculated_nullifier = hash::blake2s(signature);
+
+  assert(hash::pedersen(polynomial)[0] == polynomial_commitment);
+  assert(evaluate_polynomial(polynomial, address) == 0);
+  assert(nullifier[0] == calculated_nullifier[0]);
+  assert(nullifier[31] == calculated_nullifier[31]);
 }
 
 fn evaluate_polynomial(polynomial: [Field; CANDIDATES + 1], x: Field) -> Field {
-  // Write logic to evaluate polynomial here
+  let mut mult = 1;
+  let mut evaluation = 0;
+
+  for i in 0..CANDIDATES+1 {
+    evaluation = mult * polynomial[i] + evaluation;
+    mult = mult * x;
+  }
+
+  evaluation
 }
 
 #[test]
